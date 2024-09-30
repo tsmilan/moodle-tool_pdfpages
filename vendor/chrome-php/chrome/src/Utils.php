@@ -13,6 +13,9 @@ namespace HeadlessChromium;
 
 use HeadlessChromium\Communication\Connection;
 use HeadlessChromium\Communication\Message;
+use HeadlessChromium\Dom\Selector\Selector;
+use HeadlessChromium\Exception\CommunicationException;
+use HeadlessChromium\Exception\JavascriptException;
 use HeadlessChromium\Exception\OperationTimedOut;
 
 class Utils
@@ -42,57 +45,73 @@ class Utils
      *  }
      * ```
      *
-     * @param int $timeoutMicroSec
-     * @param \Generator $generator
+     * @param int           $timeoutMicroSec
+     * @param \Generator    $generator
      * @param callable|null $onTimeout
-     * @return mixed
+     *
      * @throws OperationTimedOut
+     *
+     * @return mixed
      */
     public static function tryWithTimeout(int $timeoutMicroSec, \Generator $generator, callable $onTimeout = null)
     {
-        $waitUntilMicroSec = microtime(true) * 1000 * 1000 + $timeoutMicroSec;
+        $waitUntilMicroSec = \hrtime(true) / 1000 + $timeoutMicroSec;
 
         foreach ($generator as $v) {
             // if timeout reached or if time+delay exceed timeout stop the execution
-            if (microtime(true) * 1000 * 1000 + $v >= $waitUntilMicroSec) {
-                if ($onTimeout) {
+            if (\hrtime(true) / 1000 + (int) $v >= $waitUntilMicroSec) {
+                if (null !== $onTimeout) {
                     // if callback was set execute it
                     return $onTimeout();
-                } else {
-                    if ($timeoutMicroSec > 1000 * 1000) {
-                        $timeoutPhrase = (int)($timeoutMicroSec / (1000 * 1000)) . 'sec';
-                    } elseif ($timeoutMicroSec > 1000) {
-                        $timeoutPhrase = (int)($timeoutMicroSec / 1000) . 'ms';
-                    } else {
-                        $timeoutPhrase = (int)($timeoutMicroSec) . 'μs';
-                    }
-                    throw new OperationTimedOut('Operation timed out (' . $timeoutPhrase . ')');
                 }
+                throw OperationTimedOut::createFromTimeout($timeoutMicroSec);
             }
 
-            usleep($v);
+            \usleep((int) $v);
         }
 
         return $generator->getReturn();
     }
 
     /**
-     * Closes all pages for the given connection
+     * Closes all pages for the given connection.
+     *
      * @param Connection $connection
      */
-    public static function closeAllPage(Connection $connection)
+    public static function closeAllPage(Connection $connection): void
     {
         // get targets
         $targetsResponse = $connection->sendMessageSync(new Message('Target.getTargets'));
 
         if ($targetsResponse->isSuccessful()) {
             foreach ($targetsResponse['result']['targetInfos'] as $target) {
-                if ($target['type'] === 'page') {
+                if ('page' === $target['type']) {
                     $connection->sendMessageSync(
                         new Message('Target.closeTarget', ['targetId' => $target['targetId']])
                     );
                 }
             }
         }
+    }
+
+    /**
+     * @throws CommunicationException
+     * @throws Exception\EvaluationFailed
+     * @throws JavascriptException
+     *
+     * @return mixed
+     */
+    public static function getElementPositionFromPage(Page $page, Selector $selector, int $position = 1)
+    {
+        $elementCount = $page
+            ->evaluate(\sprintf('JSON.parse(JSON.stringify(%s));', $selector->expressionCount()))
+            ->getReturnValue();
+
+        $position = \max(1, $position);
+        $position = \min($position, $elementCount);
+
+        return $page
+            ->evaluate(\sprintf('JSON.parse(JSON.stringify(%s.getBoundingClientRect()));', $selector->expressionFindOne($position)))
+            ->getReturnValue();
     }
 }

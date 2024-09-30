@@ -15,8 +15,8 @@ use HeadlessChromium\Communication\Connection;
 use HeadlessChromium\Communication\Message;
 use HeadlessChromium\Communication\Target;
 use HeadlessChromium\Exception\CommunicationException;
-use HeadlessChromium\Exception\NoResponseAvailable;
 use HeadlessChromium\Exception\CommunicationException\ResponseHasError;
+use HeadlessChromium\Exception\NoResponseAvailable;
 use HeadlessChromium\Exception\OperationTimedOut;
 
 class Browser
@@ -32,7 +32,13 @@ class Browser
     protected $targets = [];
 
     /**
-     * A preScript to be automatically added on every new pages
+     * @var array<string,Page>
+     */
+    protected $pages = [];
+
+    /**
+     * A preScript to be automatically added on every new pages.
+     *
      * @var string|null
      */
     protected $pagePreScript;
@@ -42,15 +48,13 @@ class Browser
         $this->connection = $connection;
 
         // listen for target created
-        $this->connection->on(Connection::EVENT_TARGET_CREATED, function (array $params) {
-
+        $this->connection->on(Connection::EVENT_TARGET_CREATED, function (array $params): void {
             // create and store the target
             $this->targets[$params['targetInfo']['targetId']] = new Target($params['targetInfo'], $this->connection);
         });
 
         // listen for target info changed
-        $this->connection->on(Connection::EVENT_TARGET_INFO_CHANGED, function (array $params) {
-
+        $this->connection->on(Connection::EVENT_TARGET_INFO_CHANGED, function (array $params): void {
             // get target by id
             $target = $this->getTarget($params['targetInfo']['targetId']);
 
@@ -60,18 +64,19 @@ class Browser
         });
 
         // listen for target destroyed
-        $this->connection->on(Connection::EVENT_TARGET_DESTROYED, function (array $params) {
-
+        $this->connection->on(Connection::EVENT_TARGET_DESTROYED, function (array $params): void {
             // get target by id
             $target = $this->getTarget($params['targetId']);
 
             if ($target) {
+                // remove the page
+                unset($this->pages[$params['targetId']]);
                 // remove the target
                 unset($this->targets[$params['targetId']]);
                 $target->destroy();
                 $this->connection
                     ->getLogger()
-                    ->debug('✘ target(' . $params['targetId'] . ') was destroyed and unreferenced.');
+                    ->debug('✘ target('.$params['targetId'].') was destroyed and unreferenced.');
             }
         });
 
@@ -93,45 +98,53 @@ class Browser
      *
      * @param string|null $script
      */
-    public function setPagePreScript(string $script = null)
+    public function setPagePreScript(string $script = null): void
     {
         $this->pagePreScript = $script;
     }
 
     /**
-     * Closes the browser
+     * Closes the browser.
      *
      * @throws \Exception
      */
-    public function close()
+    public function close(): void
     {
         $this->sendCloseMessage();
     }
 
     /**
-     * Send close message to the browser
+     * Send close message to the browser.
+     *
      * @throws OperationTimedOut
      */
-    final public function sendCloseMessage()
+    final public function sendCloseMessage(): void
     {
+        if (!$this->connection->isConnected()) {
+            $this->connection->getLogger()->debug('process: chrome already stopped, ignoring');
+
+            return;
+        }
         $r = $this->connection->sendMessageSync(new Message('Browser.close'));
         if (!$r->isSuccessful()) {
             // log
             $this->connection->getLogger()->debug('process: ✗ could not close gracefully');
             throw new \Exception('cannot close, Browser.close not supported');
         }
+        $this->connection->disconnect();
     }
 
     /**
-     * Creates a new page
+     * Creates a new page.
+     *
      * @throws NoResponseAvailable
      * @throws CommunicationException
      * @throws OperationTimedOut
+     *
      * @return Page
      */
     public function createPage(): Page
     {
-
         // page url
         $params = ['url' => 'about:blank'];
 
@@ -144,6 +157,70 @@ class Browser
         $target = $this->getTarget($targetId);
         if (!$target) {
             throw new \RuntimeException('Target could not be created for page.');
+        }
+
+        $page = $this->getPage($targetId);
+
+        return $page;
+    }
+
+    /**
+     * @param string $targetId
+     *
+     * @return Target|null
+     */
+    public function getTarget($targetId)
+    {
+        // make sure target was created (via Target.targetCreated event)
+        if (!\array_key_exists($targetId, $this->targets)) {
+            return null;
+        }
+
+        return $this->targets[$targetId];
+    }
+
+    /**
+     * @return Target[]
+     */
+    public function getTargets()
+    {
+        return \array_values($this->targets);
+    }
+
+    /**
+     * Find a target matching the type and title.
+     *
+     * @param string $type
+     * @param string $title
+     */
+    public function findTarget(string $type, string $title): ?Target
+    {
+        foreach ($this->targets as $target) {
+            if ($target->getTargetInfo('type') === $type && $target->getTargetInfo('title') === $title) {
+                return $target;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param string $targetId
+     *
+     * @throws CommunicationException
+     *
+     * @return Page|null
+     */
+    public function getPage($targetId)
+    {
+        if (\array_key_exists($targetId, $this->pages)) {
+            return $this->pages[$targetId];
+        }
+
+        $target = $this->getTarget($targetId);
+
+        if ('page' !== $target->getTargetInfo('type')) {
+            return null;
         }
 
         // get initial frame tree
@@ -169,32 +246,32 @@ class Browser
         // Page.setLifecycleEventsEnabled
         $page->getSession()->sendMessageSync(new Message('Page.setLifecycleEventsEnabled', ['enabled' => true]));
 
+        // set up http headers
+        $headers = $this->connection->getConnectionHttpHeaders();
+
+        if (\count($headers) > 0) {
+            $page->setExtraHTTPHeaders($headers);
+        }
+
         // add prescript
         if ($this->pagePreScript) {
             $page->addPreScript($this->pagePreScript);
         }
 
+        $this->pages[$targetId] = $page;
+
         return $page;
     }
 
     /**
-     * @param string $targetId
-     * @return Target|null
+     * @return Page[]
      */
-    public function getTarget($targetId)
+    public function getPages()
     {
-        // make sure target was created (via Target.targetCreated event)
-        if (!array_key_exists($targetId, $this->targets)) {
-            return null;
-        }
-        return $this->targets[$targetId];
-    }
+        $ids = \array_keys($this->targets);
 
-    /**
-     * @return Target[]
-     */
-    public function getTargets()
-    {
-        return array_values($this->targets);
+        $pages = \array_filter(\array_map([$this, 'getPage'], $ids));
+
+        return \array_values($pages);
     }
 }

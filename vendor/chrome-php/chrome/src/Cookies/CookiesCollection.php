@@ -25,7 +25,7 @@ class CookiesCollection implements \IteratorAggregate, \Countable
     {
         if ($cookies) {
             foreach ($cookies as $cookie) {
-                if (is_array($cookie)) {
+                if (\is_array($cookie)) {
                     $cookie = new Cookie($cookie);
                 }
                 $this->addCookie($cookie);
@@ -34,44 +34,49 @@ class CookiesCollection implements \IteratorAggregate, \Countable
     }
 
     /**
-     * Adds a cookie
+     * Adds a cookie.
      */
-    public function addCookie(Cookie $cookie)
+    public function addCookie(Cookie $cookie): void
     {
         $this->cookies[] = $cookie;
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
+    #[\ReturnTypeWillChange]
     public function getIterator()
     {
         return new \ArrayIterator($this->cookies);
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
+    #[\ReturnTypeWillChange]
     public function count()
     {
-        return count($this->cookies);
+        return \count($this->cookies);
     }
 
     /**
-     * Get the cookie at the given index
+     * Get the cookie at the given index.
+     *
      * @param int $i
+     *
      * @return Cookie
      */
     public function getAt($i): Cookie
     {
         if (!isset($this->cookies[$i])) {
-            throw new \RuntimeException(sprintf('No cookie at index %s', $i));
+            throw new \RuntimeException(\sprintf('No cookie at index %s', $i));
         }
+
         return $this->cookies[$i];
     }
 
     /**
-     * Find cookies with matching values
+     * Find cookies with matching values.
      *
      * usage:
      *
@@ -85,17 +90,18 @@ class CookiesCollection implements \IteratorAggregate, \Countable
      *
      * @param string $param
      * @param string $value
+     *
      * @return CookiesCollection
      */
     public function filterBy(string $param, string $value)
     {
-        return new CookiesCollection(array_filter($this->cookies, function (Cookie $cookie) use ($param, $value) {
+        return new self(\array_filter($this->cookies, function (Cookie $cookie) use ($param, $value) {
             return $cookie[$param] == $value;
         }));
     }
 
     /**
-     * Find first cookies with matching value
+     * Find first cookies with matching value.
      *
      * usage:
      *
@@ -110,6 +116,7 @@ class CookiesCollection implements \IteratorAggregate, \Countable
      *
      * @param string $param
      * @param string $value
+     *
      * @return Cookie|null
      */
     public function findOneBy(string $param, string $value)
@@ -119,6 +126,7 @@ class CookiesCollection implements \IteratorAggregate, \Countable
                 return $cookie;
             }
         }
+
         return null;
     }
 }

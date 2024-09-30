@@ -12,8 +12,8 @@
 namespace HeadlessChromium\Communication;
 
 use HeadlessChromium\Exception\NoResponseAvailable;
-use HeadlessChromium\Utils;
 use HeadlessChromium\Exception\OperationTimedOut;
+use HeadlessChromium\Utils;
 
 class ResponseReader
 {
@@ -34,7 +34,8 @@ class ResponseReader
 
     /**
      * Response constructor.
-     * @param Message $message
+     *
+     * @param Message    $message
      * @param Connection $connection
      */
     public function __construct(Message $message, Connection $connection)
@@ -44,16 +45,18 @@ class ResponseReader
     }
 
     /**
-     * True if a response is available
+     * True if a response is available.
+     *
      * @return bool
      */
     public function hasResponse()
     {
-        return $this->response !== null;
+        return null !== $this->response;
     }
 
     /**
-     * the message to get a response for
+     * the message to get a response for.
+     *
      * @return Message
      */
     public function getMessage(): Message
@@ -62,7 +65,8 @@ class ResponseReader
     }
 
     /**
-     * The connection to check messages for
+     * The connection to check messages for.
+     *
      * @return Connection
      */
     public function getConnection(): Connection
@@ -71,13 +75,14 @@ class ResponseReader
     }
 
     /**
-     * Get the response
+     * Get the response.
      *
      * Note: response will always be missing until checkForResponse is called
      * and the response is available in the buffer
      *
-     * @return Response
      * @throws NoResponseAvailable
+     *
+     * @return Response
      */
     public function getResponse(): Response
     {
@@ -89,12 +94,14 @@ class ResponseReader
     }
 
     /**
-     * Wait for a response
+     * Wait for a response.
+     *
      * @param int $timeout time to wait for a response (milliseconds)
-     * @return Response
      *
      * @throws NoResponseAvailable
      * @throws OperationTimedOut
+     *
+     * @return Response
      */
     public function waitForResponse(int $timeout = null): Response
     {
@@ -102,16 +109,18 @@ class ResponseReader
             return $this->getResponse();
         }
 
-        // default 2000ms
-        $timeout = $timeout ?? 2000;
+        $timeout ??= $this->connection->getSendSyncDefaultTimeout();
 
         return Utils::tryWithTimeout($timeout * 1000, $this->waitForResponseGenerator());
     }
 
     /**
-     * To be used in waitForResponse method
-     * @return \Generator|Response
+     * To be used in waitForResponse method.
+     *
      * @throws NoResponseAvailable
+     *
+     * @return \Generator|Response
+     *
      * @internal
      */
     private function waitForResponseGenerator()
@@ -135,6 +144,7 @@ class ResponseReader
 
     /**
      * Check in the connection if a response exists for the message and store it if the response exists.
+     *
      * @return bool
      */
     public function checkForResponse()
@@ -149,6 +159,7 @@ class ResponseReader
         // if response exists store it
         if ($this->connection->hasResponseForId($id)) {
             $this->response = new Response($this->connection->getResponseForId($id), $this->message);
+
             return true;
         }
 
@@ -162,7 +173,13 @@ class ResponseReader
         // if response store it
         if ($this->connection->hasResponseForId($id)) {
             $this->response = new Response($this->connection->getResponseForId($id), $this->message);
+
             return true;
+        }
+
+        // check if the session was destroyed in the mean time
+        if (null !== $this->message->getSessionId() && $this->connection->isSessionDestroyed($this->message->getSessionId())) {
+            throw new \HeadlessChromium\Exception\TargetDestroyed('The session is destroyed.');
         }
 
         return false;

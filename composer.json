@@ -1,6 +1,7 @@
 {
     "require": {
         "knplabs/knp-snappy": "^1.2",
-        "chrome-php/chrome": "^1.11"
+        "chrome-php/chrome": "^1.11",
+        "setasign/fpdi": "^2.6"
     }
 }

@@ -44,12 +44,15 @@ abstract class converter {
      * @param string $cookievalue cookie value to apply to conversion (optional).
      * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
      * @param string $useragent A custom User Agent to use when navigating the page (optional).
+     * @param string|null $jscondition The JavaScript condition to be evaluated. This should be a function as a string,
+     * and should return a boolean value indicating whether the condition has been met (optional).
+     * @param array $jsconditionparams An array of parameters to pass to the Javascript function (optional).
      *
      * @return string raw PDF content of URL.
      */
     abstract protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
                                string $cookiename = '', string $cookievalue = '', array $windowsize = [],
-                               string $useragent = ''): string;
+                               string $useragent = '', ?string $jscondition = null, array $jsconditionparams = []): string;
 
     /**
      * Convert a moodle URL to PDF and store in file system.
@@ -68,12 +71,15 @@ abstract class converter {
      * @param string $cookievalue cookie value to apply to conversion (optional).
      * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
      * @param string $useragent A custom User Agent to use when navigating the page (optional).
+     * @param string|null $jscondition The JavaScript condition to be evaluated. This should be a function as a string,
+     * and should return a boolean value indicating whether the condition has been met (optional).
+     * @param array $jsconditionparams An array of parameters to pass to the Javascript function (optional).
      *
      * @return \stored_file the stored file created during conversion.
      */
     final public function convert_moodle_url_to_pdf(moodle_url $url, string $filename = '', array $options = [],
             bool $keepsession = false, string $cookiename = '', string $cookievalue = '', array $windowsize = [],
-            string $useragent = ''): \stored_file {
+            string $useragent = '', ?string $jscondition = null, array $jsconditionparams = []): \stored_file {
         global $USER;
 
         try {
@@ -83,7 +89,7 @@ abstract class converter {
             $key = key_manager::create_user_key_for_url($USER->id, $url);
             $proxyurl = helper::get_proxy_url($url, $key);
             $content = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue,
-                $windowsize, $useragent);
+                $windowsize, $useragent, $jscondition, $jsconditionparams);
 
             return $this->create_pdf_file($content, $filename);
         } catch (\Exception $exception) {

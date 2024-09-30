@@ -42,11 +42,14 @@ abstract class converter {
      * instance, see relevant converter for further details.
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
+     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
+     * @param string $useragent A custom User Agent to use when navigating the page (optional).
      *
      * @return string raw PDF content of URL.
      */
     abstract protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
-                               string $cookiename = '', string $cookievalue = ''): string;
+                               string $cookiename = '', string $cookievalue = '', array $windowsize = [],
+                               string $useragent = ''): string;
 
     /**
      * Convert a moodle URL to PDF and store in file system.
@@ -63,11 +66,14 @@ abstract class converter {
      * session hijacking.)
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
+     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
+     * @param string $useragent A custom User Agent to use when navigating the page (optional).
      *
      * @return \stored_file the stored file created during conversion.
      */
     final public function convert_moodle_url_to_pdf(moodle_url $url, string $filename = '', array $options = [],
-            bool $keepsession = false, string $cookiename = '', string $cookievalue = ''): \stored_file {
+            bool $keepsession = false, string $cookiename = '', string $cookievalue = '', array $windowsize = [],
+            string $useragent = ''): \stored_file {
         global $USER;
 
         try {
@@ -76,7 +82,8 @@ abstract class converter {
             $filename = ($filename === '') ? helper::get_moodle_url_pdf_filename($url) : $filename;
             $key = key_manager::create_user_key_for_url($USER->id, $url);
             $proxyurl = helper::get_proxy_url($url, $key);
-            $content = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue);
+            $content = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue,
+                $windowsize, $useragent);
 
             return $this->create_pdf_file($content, $filename);
         } catch (\Exception $exception) {

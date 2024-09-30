@@ -187,11 +187,14 @@ class converter_wkhtmltopdf extends converter {
      * instance, see relevant converter for further details.
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
+     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
+     * @param string $useragent A custom User Agent to use when navigating the page (optional).
      *
      * @return string raw PDF content of URL.
      */
     protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
-                                              string $cookiename = '', string $cookievalue = ''): string {
+                                            string $cookiename = '', string $cookievalue = '', array $windowsize = [],
+                                            string $useragent = ''): string {
         $pdf = new Pdf(helper::get_config($this->get_name() . 'path'));
         $pdf->setOptions($options);
 

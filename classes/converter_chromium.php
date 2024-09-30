@@ -19,6 +19,7 @@ namespace tool_pdfpages;
 use HeadlessChromium\Browser;
 use HeadlessChromium\BrowserFactory;
 use HeadlessChromium\Cookies\Cookie;
+use HeadlessChromium\Page;
 use moodle_url;
 
 defined('MOODLE_INTERNAL') || die();
@@ -71,12 +72,16 @@ class converter_chromium extends converter {
      * @param string $cookievalue cookie value to apply to conversion (optional).
      * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
      * @param string $useragent A custom User Agent to use when navigating the page (optional).
+     * @param string|null $jscondition The JavaScript condition to be evaluated. This should be a function as a string,
+     * and should return a boolean value indicating whether the condition has been met (optional).
+     * @param array $jsconditionparams An array of parameters to pass to the Javascript function (optional).
      *
      * @return string raw PDF content of URL.
      */
     protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
                                             string $cookiename = '', string $cookievalue = '', array $windowsize = [],
-                                            string $useragent = ''): string {
+                                            string $useragent = '', ?string $jscondition = null,
+                                            array $jsconditionparams = []): string {
         try {
             $browseroptions = [
                 'headless' => true,
@@ -105,14 +110,59 @@ class converter_chromium extends converter {
             }
 
             $page->navigate($proxyurl->out(false))->waitForNavigation();
-            $pdf = $page->pdf($options);
 
             $timeout = 1000 * helper::get_config($this->get_name() . 'responsetimeout');
+            $this->wait_for_js_condition($page, $jscondition, $jsconditionparams, $timeout);
+
+            $pdf = $page->pdf($options);
+
             return base64_decode($pdf->getBase64($timeout));
         } finally {
             // Always close the browser instance to ensure that chromium process is stopped.
             if (!empty($browser) && $browser instanceof Browser) {
                 $browser->close();
+            }
+        }
+    }
+
+    /**
+     * Wait for a JavaScript condition on the page to be true, within a specified timeout.
+     *
+     * This function will repeatedly evaluate the provided JavaScript condition with a 0.5 second
+     * pause between checks, until it returns true or the timeout is exceeded.
+     *
+     * @param Page $page The current browser page.
+     * @param string|null $jscondition The JavaScript condition to be evaluated. This should be a function as a string,
+     * and should return a boolean value indicating whether the condition has been met.
+     * @param array $jsconditionparams An array of parameters to pass to the Javascript function.
+     * @param int $timeout The maximum time to wait for the MathJax to finish processing, in milliseconds.
+     * Defaults to 30000ms (30 seconds).
+     * @throws \moodle_exception If the JavaScript condition does not finish within the specified timeout.
+     */
+    protected function wait_for_js_condition(Page $page, ?string $jscondition = null, array $jsconditionparams = [],
+            int $timeout = 30000): void {
+
+        if (empty($jscondition)) {
+            return;
+        }
+
+        $isconditionmet = false;
+        $starttime = microtime(true);
+
+        while (!$isconditionmet) {
+            $evaluation = $page->callFunction($jscondition, $jsconditionparams);
+
+            if ($evaluation->getReturnValue() === true) {
+                $isconditionmet = true;
+            } else {
+                // Wait 0.5 seconds before rechecking.
+                usleep(500000);
+
+                // Calculate elapsed time and check if timeout is exceeded.
+                $elapsedtime = (microtime(true) - $starttime) * 1000;
+                if ($elapsedtime >= $timeout) {
+                    throw new \moodle_exception('error:mathjaxtimeout', 'tool_pdfpages');
+                }
             }
         }
     }

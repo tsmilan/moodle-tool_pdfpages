@@ -17,6 +17,7 @@
 namespace tool_pdfpages;
 
 use moodle_url;
+use tool_pdfpages\pdf;
 
 /**
  * Interface for converting Moodle pages to PDFs.
@@ -95,6 +96,78 @@ abstract class converter {
         } catch (\Exception $exception) {
             throw new \moodle_exception('error:urltopdf', 'tool_pdfpages', '', null, $exception->getMessage());
         } finally {
+            if (!$keepsession) {
+                // Make sure the access key token session cannot be used for any other requests, prevent session hijacking.
+                \core\session\manager::terminate_current();
+            }
+        }
+    }
+
+    /**
+     * Convert the given moodle URLs to PDF and store them in the file system.
+     * Note: If the currently logged in user does not have the correct capabilities to view the
+     * target URL, the created PDF will most likely be an error page.
+     *
+     * @param array $urls An array of moodle_url objects representing the target URLs to convert.
+     * @param string $filename the name to give converted file.
+     * (if none is specified, filename will be generated {@see \tool_pdfpages\helper::get_moodle_url_pdf_filename})
+     * @param array $options any additional options to pass to converter, valid options vary with converter
+     * instance, see relevant converter for further details.
+     * @param bool $keepsession should session be maintained after conversion? (For security reasons, this should always be `false`
+     * when conducting a conversion outside of a browser window, such as in an adhoc task or other background process, to prevent
+     * session hijacking.)
+     * @param string $cookiename cookie name to apply to conversion (optional).
+     * @param string $cookievalue cookie value to apply to conversion (optional).
+     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
+     * @param string $useragent A custom User Agent to use when navigating the page (optional).
+     * @param string $outputfilepath The file path to store the output file.
+     * @param bool $printpagenumbers Whether to print page numbers in the footer of the combined PDF (optional,
+     *                               defaults to false).
+     *
+     * @return \stored_file the stored file created during conversion.
+     */
+    final public function convert_moodle_urls_to_pdf(array $urls, string $filename = '', array $options = [],
+            bool $keepsession = false, string $cookiename = '', string $cookievalue = '', array $windowsize = [],
+            string $useragent = '', string $outputfilepath = '', bool $printpagenumbers = false): \stored_file {
+        global $USER;
+
+        $allurlsarevalid = empty(array_filter($urls, fn($url): bool => !$url instanceof moodle_url));
+        if (!$allurlsarevalid) {
+            throw new \coding_exception('All elements in the array must be an instance of moodle_url.');
+        }
+
+        try {
+            $options = $this->validate_options($options);
+            $pdffilepaths = [];
+
+            foreach ($urls as $url) {
+                $filename = ($filename === '') ? helper::get_moodle_url_pdf_filename($url) : $filename;
+                $key = key_manager::create_user_key_for_url($USER->id, $url);
+                $proxyurl = helper::get_proxy_url($url, $key);
+
+
+                $pdfcontent = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue, $windowsize, $useragent);
+                $temppdf = $this->create_pdf_file($pdfcontent, $filename);
+                $pdffilepaths[] = $temppdf->copy_content_to_temp();
+                $temppdf->delete();
+            }
+
+            $pdf = new pdf();
+            $pdf->combine_pdfs($pdffilepaths, $outputfilepath, $printpagenumbers);
+            $combinedpdfcontent = file_get_contents($outputfilepath);
+
+            // Return the combined PDF as a stored file.
+            return $this->create_pdf_file($combinedpdfcontent, $outputfilepath);
+        } catch (\Exception $exception) {
+            throw new \moodle_exception('error:urltopdf', 'tool_pdfpages', '', null, $exception->getMessage());
+        } finally {
+            // Clean up the temporary PDF files.
+            foreach ($pdffilepaths as $pdffilepath) {
+                if (file_exists($pdffilepath)) {
+                    unlink($pdffilepath);
+                }
+            }
+
             if (!$keepsession) {
                 // Make sure the access key token session cannot be used for any other requests, prevent session hijacking.
                 \core\session\manager::terminate_current();

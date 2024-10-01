@@ -40,4 +40,9 @@ login_manager::login_with_key($key, $url);
 
 require_capability('tool/pdfpages:generatepdf', \context_system::instance());
 
+// Append the regenerated sesskey if the URL had an old sesskey parameter.
+if (!is_null($url->get_param('sesskey'))) {
+	$url->params(['sesskey' => sesskey()]);
+}
+
 redirect($url);

@@ -43,17 +43,11 @@ abstract class converter {
      * instance, see relevant converter for further details.
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
-     * @param string $useragent A custom User Agent to use when navigating the page (optional).
-     * @param string|null $jscondition The JavaScript condition to be evaluated. This should be a function as a string,
-     * and should return a boolean value indicating whether the condition has been met (optional).
-     * @param array $jsconditionparams An array of parameters to pass to the Javascript function (optional).
      *
      * @return string raw PDF content of URL.
      */
     abstract protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
-                               string $cookiename = '', string $cookievalue = '', array $windowsize = [],
-                               string $useragent = '', ?string $jscondition = null, array $jsconditionparams = []): string;
+                               string $cookiename = '', string $cookievalue = ''): string;
 
     /**
      * Convert a moodle URL to PDF and store in file system.
@@ -70,17 +64,11 @@ abstract class converter {
      * session hijacking.)
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
-     * @param string $useragent A custom User Agent to use when navigating the page (optional).
-     * @param string|null $jscondition The JavaScript condition to be evaluated. This should be a function as a string,
-     * and should return a boolean value indicating whether the condition has been met (optional).
-     * @param array $jsconditionparams An array of parameters to pass to the Javascript function (optional).
      *
      * @return \stored_file the stored file created during conversion.
      */
     final public function convert_moodle_url_to_pdf(moodle_url $url, string $filename = '', array $options = [],
-            bool $keepsession = false, string $cookiename = '', string $cookievalue = '', array $windowsize = [],
-            string $useragent = '', ?string $jscondition = null, array $jsconditionparams = []): \stored_file {
+            bool $keepsession = false, string $cookiename = '', string $cookievalue = ''): \stored_file {
         global $USER;
 
         try {
@@ -88,9 +76,10 @@ abstract class converter {
 
             $filename = ($filename === '') ? helper::get_moodle_url_pdf_filename($url) : $filename;
             $key = key_manager::create_user_key_for_url($USER->id, $url);
-            $proxyurl = helper::get_proxy_url($url, $key);
-            $content = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue,
-                $windowsize, $useragent, $jscondition, $jsconditionparams);
+            $context = helper::get_page_context();
+            $contextid = is_null($context) ? null : $context->id;
+            $proxyurl = helper::get_proxy_url($url, $key, $contextid);
+            $content = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue);
 
             return $this->create_pdf_file($content, $filename);
         } catch (\Exception $exception) {
@@ -118,17 +107,14 @@ abstract class converter {
      * session hijacking.)
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
-     * @param string $useragent A custom User Agent to use when navigating the page (optional).
-     * @param string $outputfilepath The file path to store the output file.
      * @param bool $printpagenumbers Whether to print page numbers in the footer of the combined PDF (optional,
-     *                               defaults to false).
+     * defaults to false).
      *
      * @return \stored_file the stored file created during conversion.
      */
     final public function convert_moodle_urls_to_pdf(array $urls, string $filename = '', array $options = [],
-            bool $keepsession = false, string $cookiename = '', string $cookievalue = '', array $windowsize = [],
-            string $useragent = '', string $outputfilepath = '', bool $printpagenumbers = false): \stored_file {
+            bool $keepsession = false, string $cookiename = '', string $cookievalue = '',
+            bool $printpagenumbers = false): \stored_file {
         global $USER;
 
         $allurlsarevalid = empty(array_filter($urls, fn($url): bool => !$url instanceof moodle_url));
@@ -143,21 +129,25 @@ abstract class converter {
             foreach ($urls as $url) {
                 $filename = ($filename === '') ? helper::get_moodle_url_pdf_filename($url) : $filename;
                 $key = key_manager::create_user_key_for_url($USER->id, $url);
-                $proxyurl = helper::get_proxy_url($url, $key);
-
-
-                $pdfcontent = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue, $windowsize, $useragent);
+                $context = helper::get_page_context();
+                $contextid = is_null($context) ? null : $context->id;
+                $proxyurl = helper::get_proxy_url($url, $key, $contextid);
+                $pdfcontent = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue);
                 $temppdf = $this->create_pdf_file($pdfcontent, $filename);
                 $pdffilepaths[] = $temppdf->copy_content_to_temp();
                 $temppdf->delete();
             }
 
+            $tempdir = make_temp_directory('tool_pdfpages');
+            $outputfilepath = $tempdir . '/' . $filename;
+
             $pdf = new pdf();
             $pdf->combine_pdfs($pdffilepaths, $outputfilepath, $printpagenumbers);
             $combinedpdfcontent = file_get_contents($outputfilepath);
+            unlink($outputfilepath);
 
             // Return the combined PDF as a stored file.
-            return $this->create_pdf_file($combinedpdfcontent, $outputfilepath);
+            return $this->create_pdf_file($combinedpdfcontent, $filename);
         } catch (\Exception $exception) {
             throw new \moodle_exception('error:urltopdf', 'tool_pdfpages', '', null, $exception->getMessage());
         } finally {

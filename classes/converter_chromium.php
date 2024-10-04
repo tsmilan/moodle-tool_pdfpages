@@ -59,6 +59,11 @@ class converter_chromium extends converter {
         'marginRight' => '(float) margin right in inches',
         'preferCSSPageSize' => '(bool) read params directly from @page',
         'scale' => '(float) scale the page',
+        'windowSize' => '(array) The size of the browser window, e.g. [1920, 1080].',
+        'userAgent' => '(string) The custom user agent to use when navigating the page.',
+        'jsCondition' => '(string) A JavaScript condition to be evaluated, specified as a string.
+            It should return a boolean value indicating whether the condition has been met',
+        'jsConditionParams' => '(array) An array of parameters to pass to the Javascript function.',
     ];
 
     /**
@@ -70,26 +75,19 @@ class converter_chromium extends converter {
      * instance, see relevant converter for further details.
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
-     * @param string $useragent A custom User Agent to use when navigating the page (optional).
-     * @param string|null $jscondition The JavaScript condition to be evaluated. This should be a function as a string,
-     * and should return a boolean value indicating whether the condition has been met (optional).
-     * @param array $jsconditionparams An array of parameters to pass to the Javascript function (optional).
      *
      * @return string raw PDF content of URL.
      */
     protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
-                                            string $cookiename = '', string $cookievalue = '', array $windowsize = [],
-                                            string $useragent = '', ?string $jscondition = null,
-                                            array $jsconditionparams = []): string {
+                                            string $cookiename = '', string $cookievalue = ''): string {
         try {
             $browseroptions = [
                 'headless' => true,
                 'noSandbox' => true
             ];
 
-            if (!empty($windowsize)) {
-                $browseroptions['windowSize'] = $windowsize;
+            if (isset($options['windowSize'])) {
+                $browseroptions['windowSize'] = $options['windowSize'];
             }
 
             $browserfactory = new BrowserFactory(helper::get_config($this->get_name() . 'path'));
@@ -105,16 +103,24 @@ class converter_chromium extends converter {
                 ])->await();
             }
 
-            if (!empty($useragent)) {
-                $page->setUserAgent($useragent);
+            if (!empty($options['userAgent'])) {
+                $page->setUserAgent($options['userAgent']);
             }
 
             $page->navigate($proxyurl->out(false))->waitForNavigation();
 
             $timeout = 1000 * helper::get_config($this->get_name() . 'responsetimeout');
+
+            $jscondition = isset($options['jsCondition']) ? $options['jsCondition'] : null;
+            $jsconditionparams = isset($options['jsConditionParams']) ? $options['jsConditionParams'] : [];
             $this->wait_for_js_condition($page, $jscondition, $jsconditionparams, $timeout);
 
-            $pdf = $page->pdf($options);
+            $pdfoptions = array_filter($options, function($option) {
+                $renderoptions = ['windowSize', 'userAgent', 'jsCondition', 'jsconditionparams'];
+                return !in_array($option, $renderoptions);
+            }, ARRAY_FILTER_USE_KEY);
+
+            $pdf = $page->pdf($pdfoptions);
 
             return base64_decode($pdf->getBase64($timeout));
         } finally {

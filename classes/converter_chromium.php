@@ -70,26 +70,26 @@ class converter_chromium extends converter {
      * instance, see relevant converter for further details.
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $windowsize Size of the browser window. ex: `[1920, 1080]` (optional).
-     * @param string $useragent A custom User Agent to use when navigating the page (optional).
-     * @param string|null $jscondition The JavaScript condition to be evaluated. This should be a function as a string,
-     * and should return a boolean value indicating whether the condition has been met (optional).
-     * @param array $jsconditionparams An array of parameters to pass to the Javascript function (optional).
+     * @param array $renderoptions Chromium-specific options:
+     *        - windowSize: An array specifying the size of the browser window, e.g. [1920, 1080].
+     *        - userAgent: A string representing the custom user agent to use when navigating the page.
+     *        - jsCondition: A JavaScript condition to be evaluated, specified as a string.
+     *                It should return a boolean value indicating whether the condition has been met.
+     *        - jsConditionParams: An array of parameters to pass to the Javascript function.
      *
      * @return string raw PDF content of URL.
      */
     protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
-                                            string $cookiename = '', string $cookievalue = '', array $windowsize = [],
-                                            string $useragent = '', ?string $jscondition = null,
-                                            array $jsconditionparams = []): string {
+                                            string $cookiename = '', string $cookievalue = '',
+                                            array $renderoptions = []): string {
         try {
             $browseroptions = [
                 'headless' => true,
                 'noSandbox' => true
             ];
 
-            if (!empty($windowsize)) {
-                $browseroptions['windowSize'] = $windowsize;
+            if (!is_null($renderoptions['windowSize'])) {
+                $browseroptions['windowSize'] = $renderoptions['windowSize'];
             }
 
             $browserfactory = new BrowserFactory(helper::get_config($this->get_name() . 'path'));
@@ -105,14 +105,14 @@ class converter_chromium extends converter {
                 ])->await();
             }
 
-            if (!empty($useragent)) {
-                $page->setUserAgent($useragent);
+            if (!empty($renderoptions['userAgent'])) {
+                $page->setUserAgent($renderoptions['userAgent']);
             }
 
             $page->navigate($proxyurl->out(false))->waitForNavigation();
 
             $timeout = 1000 * helper::get_config($this->get_name() . 'responsetimeout');
-            $this->wait_for_js_condition($page, $jscondition, $jsconditionparams, $timeout);
+            $this->wait_for_js_condition($page, $renderoptions['jsCondition'], $renderoptions['jsConditionParams'], $timeout);
 
             $pdf = $page->pdf($options);
 
@@ -165,6 +165,39 @@ class converter_chromium extends converter {
                 }
             }
         }
+    }
+
+    /**
+     * Validate the renderoptions array to ensure it contains valid keys and values.
+     *
+     * @param array $renderoptions Chromium-specific options such as windowSize, userAgent,
+     * jsCondition and jsParams.
+     * @return array Validated render options.
+     * @throws \coding_exception If the options are invalid.
+     */
+    protected function validate_render_options(array $renderoptions): array {
+        if (isset($renderoptions['windowSize']) && !is_array($renderoptions['windowSize'])) {
+            throw new \coding_exception('Invalid windowSize: It must be an array with two integer values.');
+        }
+
+        if (isset($renderoptions['userAgent']) && !is_string($renderoptions['userAgent'])) {
+            throw new \coding_exception('Invalid userAgent: It must be a string.');
+        }
+
+        if (isset($renderoptions['jsCondition']) && !is_string($renderoptions['jsCondition'])) {
+            throw new \coding_exception('Invalid jsCondition: It must be a JavaScript function specified as a string.');
+        }
+
+        if (isset($renderoptions['jsConditionParams']) && !is_array($renderoptions['jsConditionParams'])) {
+            throw new \coding_exception('Invalid jsConditionParams: It must be an array.');
+        }
+
+        return [
+            'windowSize' => $renderoptions['windowSize'] ?? null,
+            'userAgent' => $renderoptions['userAgent'] ?? '',
+            'jsCondition' => $renderoptions['jsCondition'] ?? null,
+            'jsConditionParams' => $renderoptions['jsConditionParams'] ?? [],
+        ];
     }
 
     /**

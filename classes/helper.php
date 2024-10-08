@@ -126,14 +126,19 @@ class helper {
      *
      * @param \moodle_url $targeturl the target URL to reach after passing through proxy.
      * @param string $key the access key to use for Moodle user login validation.
+     * @param int|null $contextid the context ID to check for PDF generation capability.
      *
      * @return \moodle_url
      */
-    public static function get_proxy_url(moodle_url $targeturl, string $key) {
+    public static function get_proxy_url(moodle_url $targeturl, string $key, ?int $contextid = null) {
         $params = [
             'url' => $targeturl->out(),
-            'key' => $key,
+            'key' => $key
         ];
+
+        if (!is_null($contextid)) {
+            $params['contextid'] = $contextid;
+        }
 
         return new moodle_url(self::PROXY_URL, $params);
     }
@@ -147,5 +152,25 @@ class helper {
      */
     public static function is_converter_enabled(string $convertername) {
         return array_key_exists($convertername, converter_factory::get_converters());
+    }
+
+    /**
+     * Checks if the user has the capability to generate PDFs.
+     *
+     * @param int|null $contextid Optional context ID for a fallback check if the system-level
+     * and page context are not applicable.
+     */
+    public static function check_generatepdf_capability(?int $contextid = null): void {
+        global $PAGE;
+
+        $context = \context_system::instance();
+        if (!has_capability('tool/pdfpages:generatepdf', $context)) {
+            if (isset($PAGE->context)) {
+                $context = $PAGE->context;
+            } else if (!is_null($contextid)) {
+                $context = \context::instance_by_id($contextid);
+            }
+            require_capability('tool/pdfpages:generatepdf', $context);
+        }
     }
 }

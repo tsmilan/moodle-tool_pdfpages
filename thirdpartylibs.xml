@@ -50,6 +50,13 @@
         <licenseversion>1.0</licenseversion>
     </library>
     <library>
+        <location>vendor/setasign</location>
+        <name>Setasign</name>
+        <version>2.6</version>
+        <license>MIT</license>
+        <licenseversion>1.0</licenseversion>
+    </library>
+    <library>
         <location>vendor/symfony</location>
         <name>Symfony components</name>
         <version>5.2.2</version>

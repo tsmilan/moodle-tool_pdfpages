@@ -28,21 +28,23 @@
  */
 
 use tool_pdfpages\login_manager;
+use tool_pdfpages\helper;
 
 require_once(__DIR__ . '/../../../config.php');
 
 $targeturl = required_param('url', PARAM_URL);
 $key = required_param('key', PARAM_ALPHANUM);
+$contextid = optional_param('contextid', null, PARAM_INT);
 
 $url = new moodle_url($targeturl);
 
 login_manager::login_with_key($key, $url);
 
-require_capability('tool/pdfpages:generatepdf', \context_system::instance());
+helper::check_generatepdf_capability($contextid);
 
 // Append the regenerated sesskey if the URL had an old sesskey parameter.
 if (!is_null($url->get_param('sesskey'))) {
-	$url->params(['sesskey' => sesskey()]);
+    $url->params(['sesskey' => sesskey()]);
 }
 
 redirect($url);

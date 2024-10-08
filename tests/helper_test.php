@@ -119,7 +119,7 @@ class helper_test extends \advanced_testcase {
         $url = new \moodle_url("/course/view.php?id={$course->id}");
         $key = key_manager::create_user_key_for_url($user->id, $url);
 
-        $actual = helper::get_proxy_url($url, $key);
+        $actual = helper::get_proxy_url($url, $key, \context_system::instance()->id);
         $this->assertInstanceOf(\moodle_url::class, $actual);
         $this->assertEquals($url->out(), $actual->get_param('url'));
         $this->assertEquals($key, $actual->get_param('key'));

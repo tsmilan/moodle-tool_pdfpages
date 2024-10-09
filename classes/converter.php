@@ -136,7 +136,7 @@ abstract class converter {
             bool $printpagenumbers = false): \stored_file {
         global $USER;
 
-        $allurlsarevalid = empty(array_filter($urls, fn($url) => !$url instanceof moodle_url));
+        $allurlsarevalid = empty(array_filter($urls, fn($url): bool => !$url instanceof moodle_url));
         if (!$allurlsarevalid) {
             throw new \coding_exception('All elements in the array must be an instance of moodle_url.');
         }

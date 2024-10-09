@@ -58,7 +58,7 @@ git clone git@github.com:catalyst/moodle-tool_pdfpages.git <moodledir>/admin/too
 
 Use of the converter requires programmatic access, there in no frontend associated with this plugin, so you need to develop another module, or add this plugin to the dependencies of an existing Moodle plugin.
 
-> Only users with the system or module level capability `tool/pdfpages:generatepdf` can conduct conversions, as this is required to create the single use access key for the headless browser session.
+> Only users with capability `tool/pdfpages:generatepdf` in a specific context can conduct conversions, as this is required to create the single use access key for the headless browser session.
 
 - Create a converter instance using the factory passing in a converter name (`chromium` or `wkhtmltopdf`) or you can leave it empty to grab the first enabled converter found (if no converters are configured correctly, an exception will be thrown):
 ```php
@@ -85,7 +85,7 @@ __Note__: if you didn't specify a filename when converting, you can obtain the f
 In order to test how a URL will be converted and see the outcome, you can utilise the `/admin/tool/pdfpages/test.php` page in your browser.
 This will utilise the configured converter on the server side to carry out the conversion, creating the converted file in the Moodle file system and then serve up the PDF to the browser.
 
-In order to access this page, the logged in Moodle user needs to be an Admin or have a role with the capability `tool/pdfpages:generatepdf` at the system or module context level.
+In order to access this page, the logged in Moodle user needs to be an Admin or have a role with the capability `tool/pdfpages:generatepdf` in the relevant context.
 
 This page takes the following query parameters:
 - url: (required) the ASCII encoded target URL (may be absolute URL or relative Moodle URL)

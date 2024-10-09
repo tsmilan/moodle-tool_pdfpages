@@ -79,14 +79,15 @@ abstract class converter {
     final public function convert_moodle_url_to_pdf(moodle_url $url, string $filename = '', array $options = [],
             bool $keepsession = false, string $cookiename = '', string $cookievalue = '',
             array $renderoptions = []): \stored_file {
-        global $USER, $PAGE;
+        global $USER;
 
         try {
             $options = $this->validate_options($options);
 
             $filename = ($filename === '') ? helper::get_moodle_url_pdf_filename($url) : $filename;
             $key = key_manager::create_user_key_for_url($USER->id, $url);
-            $contextid = isset($PAGE->context) ? $PAGE->context->id : null;
+            $context = helper::get_page_context();
+            $contextid = is_null($context) ? null : $context->id;
             $proxyurl = helper::get_proxy_url($url, $key, $contextid);
             $renderoptions = $this->validate_render_options($renderoptions);
             $content = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue,
@@ -133,7 +134,7 @@ abstract class converter {
     final public function convert_moodle_urls_to_pdf(array $urls, string $filename = '', array $options = [],
             bool $keepsession = false, string $cookiename = '', string $cookievalue = '', array $renderoptions = [],
             bool $printpagenumbers = false): \stored_file {
-        global $USER, $PAGE;
+        global $USER;
 
         $allurlsarevalid = empty(array_filter($urls, fn($url) => !$url instanceof moodle_url));
         if (!$allurlsarevalid) {
@@ -147,7 +148,9 @@ abstract class converter {
             foreach ($urls as $url) {
                 $filename = ($filename === '') ? helper::get_moodle_url_pdf_filename($url) : $filename;
                 $key = key_manager::create_user_key_for_url($USER->id, $url);
-                $proxyurl = helper::get_proxy_url($url, $key, $PAGE->context->id);
+                $context = helper::get_page_context();
+                $contextid = is_null($context) ? null : $context->id;
+                $proxyurl = helper::get_proxy_url($url, $key, $contextid);
 
                 $renderoptions = $this->validate_render_options($renderoptions);
                 $pdfcontent = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue,

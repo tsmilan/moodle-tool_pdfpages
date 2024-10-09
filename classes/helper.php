@@ -16,7 +16,10 @@
 
 namespace tool_pdfpages;
 
+use context;
+use Closure;
 use file_storage;
+use moodle_page;
 use moodle_url;
 
 defined('MOODLE_INTERNAL') || die();
@@ -161,16 +164,31 @@ class helper {
      * and page context are not applicable.
      */
     public static function check_generatepdf_capability(?int $contextid = null): void {
-        global $PAGE;
-
         $context = \context_system::instance();
         if (!has_capability('tool/pdfpages:generatepdf', $context)) {
-            if (isset($PAGE->context)) {
-                $context = $PAGE->context;
+            $pagecontext = self::get_page_context();
+            if (!is_null($pagecontext)) {
+                $context = $pagecontext;
             } else if (!is_null($contextid)) {
                 $context = \context::instance_by_id($contextid);
             }
             require_capability('tool/pdfpages:generatepdf', $context);
         }
+    }
+
+    /**
+     * Obtains the page context via a Closure to avoid calling the magic method "magic_get_context",
+     * as it triggers a debugging coding problem for pages that don't have a context.
+     *
+     * @return context The page context.
+     */
+    public static function get_page_context() {
+        global $PAGE;
+
+        return Closure::bind(
+            fn(moodle_page $page): ?context => $page->_context,
+            null,
+            $PAGE
+        )($PAGE);
     }
 }

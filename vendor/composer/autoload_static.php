@@ -13,6 +13,10 @@ class ComposerStaticInit216c2b983c47aa208f9ff743210d4d86
     );
 
     public static $prefixLengthsPsr4 = array (
+        's' => 
+        array (
+            'setasign\\Fpdi\\' => 14,
+        ),
         'W' => 
         array (
             'Wrench\\' => 7,
@@ -48,6 +52,10 @@ class ComposerStaticInit216c2b983c47aa208f9ff743210d4d86
     );
 
     public static $prefixDirsPsr4 = array (
+        'setasign\\Fpdi\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/setasign/fpdi/src',
+        ),
         'Wrench\\' => 
         array (
             0 => __DIR__ . '/..' . '/chrome-php/wrench/src',

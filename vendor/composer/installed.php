@@ -3,7 +3,7 @@
         'name' => '__root__',
         'pretty_version' => 'dev-EDAEASS-17236',
         'version' => 'dev-EDAEASS-17236',
-        'reference' => '092b5316f9b1268b883c5af6bcf1ca2773b76e72',
+        'reference' => 'be1415a311694575a82ba64c991f38c073a37e7c',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         '__root__' => array(
             'pretty_version' => 'dev-EDAEASS-17236',
             'version' => 'dev-EDAEASS-17236',
-            'reference' => '092b5316f9b1268b883c5af6bcf1ca2773b76e72',
+            'reference' => 'be1415a311694575a82ba64c991f38c073a37e7c',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -78,6 +78,15 @@
             'provided' => array(
                 0 => '1.0.0 || 2.0.0 || 3.0.0',
             ),
+        ),
+        'setasign/fpdi' => array(
+            'pretty_version' => 'v2.6.1',
+            'version' => '2.6.1.0',
+            'reference' => '09a816004fcee9ed3405bd164147e3fdbb79a56f',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../setasign/fpdi',
+            'aliases' => array(),
+            'dev_requirement' => false,
         ),
         'symfony/filesystem' => array(
             'pretty_version' => 'v6.4.12',

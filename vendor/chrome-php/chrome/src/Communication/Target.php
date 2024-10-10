@@ -45,9 +45,11 @@ class Target
     }
 
     /**
+     * @param ?string $sessionId
+     *
      * @return Session
      */
-    public function getSession(): Session
+    public function getSession(?string $sessionId = null): Session
     {
         if ($this->destroyed) {
             throw new TargetDestroyed('The target was destroyed.');
@@ -55,17 +57,18 @@ class Target
 
         // if not already done, create a session for the target
         if (!$this->session) {
-            $this->session = $session = $this->connection->createSession($this->getTargetInfo('targetId'));
+            $this->session = $this->connection->createSession($this->getTargetInfo('targetId'), $sessionId);
         }
 
         return $this->session;
     }
 
     /**
-     * Marks the target as destroyed
+     * Marks the target as destroyed.
+     *
      * @internal
      */
-    public function destroy()
+    public function destroy(): void
     {
         if ($this->destroyed) {
             throw new TargetDestroyed('The target was already destroyed.');
@@ -88,8 +91,10 @@ class Target
     }
 
     /**
-     * Get target info value by it's name or null if it does not exist
+     * Get target info value by it's name or null if it does not exist.
+     *
      * @param string $infoName
+     *
      * @return mixed
      */
     public function getTargetInfo($infoName)
@@ -99,10 +104,12 @@ class Target
 
     /**
      * To be called when Target.targetInfoChanged is triggered.
+     *
      * @param array $targetInfo
+     *
      * @internal
      */
-    public function targetInfoChanged($targetInfo)
+    public function targetInfoChanged($targetInfo): void
     {
         $this->targetInfo = $targetInfo;
     }

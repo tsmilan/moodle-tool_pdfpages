@@ -187,18 +187,11 @@ class converter_wkhtmltopdf extends converter {
      * instance, see relevant converter for further details.
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $renderoptions These options are ignored for wkhtmltopdf, and are only relevant for
-     * Chromium-based conversions.
      *
      * @return string raw PDF content of URL.
      */
     protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
-                                            string $cookiename = '', string $cookievalue = '',
-                                            array $renderoptions = []): string {
-        if (!empty($renderoptions)) {
-            debugging('Warning: The renderoptions are ignore in wkhtmltopdf.', DEBUG_DEVELOPER);
-        }
-
+                                            string $cookiename = '', string $cookievalue = ''): string {
         $pdf = new Pdf(helper::get_config($this->get_name() . 'path'));
         $pdf->setOptions($options);
 

@@ -43,13 +43,11 @@ abstract class converter {
      * instance, see relevant converter for further details.
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $renderoptions (Optional) Chromium-specific options such as windowSize, userAgent,
-     * jsCondition and jsParams. These options are ignored when using wkhtmltopdf.
      *
      * @return string raw PDF content of URL.
      */
     abstract protected function generate_pdf_content(moodle_url $proxyurl, string $filename = '', array $options = [],
-                               string $cookiename = '', string $cookievalue = '', array $renderoptions = []): string;
+                               string $cookiename = '', string $cookievalue = ''): string;
 
     /**
      * Convert a moodle URL to PDF and store in file system.
@@ -66,19 +64,11 @@ abstract class converter {
      * session hijacking.)
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $renderoptions Chromium-specific options:
-     *        - windowSize: An array specifying the size of the browser window, e.g. [1920, 1080].
-     *        - userAgent: A string representing the custom user agent to use when navigating the page.
-     *        - jsCondition: A JavaScript condition to be evaluated, specified as a string.
-     *                It should return a boolean value indicating whether the condition has been met.
-     *        - jsConditionParams: An array of parameters to pass to the Javascript function.
-     *        Note: These options are ignored when using wkhtmltopdf.
      *
      * @return \stored_file the stored file created during conversion.
      */
     final public function convert_moodle_url_to_pdf(moodle_url $url, string $filename = '', array $options = [],
-            bool $keepsession = false, string $cookiename = '', string $cookievalue = '',
-            array $renderoptions = []): \stored_file {
+            bool $keepsession = false, string $cookiename = '', string $cookievalue = ''): \stored_file {
         global $USER;
 
         try {
@@ -89,9 +79,7 @@ abstract class converter {
             $context = helper::get_page_context();
             $contextid = is_null($context) ? null : $context->id;
             $proxyurl = helper::get_proxy_url($url, $key, $contextid);
-            $renderoptions = $this->validate_render_options($renderoptions);
-            $content = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue,
-                $renderoptions);
+            $content = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue);
 
             return $this->create_pdf_file($content, $filename);
         } catch (\Exception $exception) {
@@ -119,20 +107,13 @@ abstract class converter {
      * session hijacking.)
      * @param string $cookiename cookie name to apply to conversion (optional).
      * @param string $cookievalue cookie value to apply to conversion (optional).
-     * @param array $renderoptions Chromium-specific options:
-     *        - windowSize: An array specifying the size of the browser window, e.g. [1920, 1080].
-     *        - userAgent: A string representing the custom user agent to use when navigating the page.
-     *        - jsCondition: A JavaScript condition to be evaluated, specified as a string.
-     *                It should return a boolean value indicating whether the condition has been met.
-     *        - jsConditionParams: An array of parameters to pass to the Javascript function.
-     *        Note: These options are ignored when using wkhtmltopdf.
      * @param bool $printpagenumbers Whether to print page numbers in the footer of the combined PDF (optional,
      * defaults to false).
      *
      * @return \stored_file the stored file created during conversion.
      */
     final public function convert_moodle_urls_to_pdf(array $urls, string $filename = '', array $options = [],
-            bool $keepsession = false, string $cookiename = '', string $cookievalue = '', array $renderoptions = [],
+            bool $keepsession = false, string $cookiename = '', string $cookievalue = '',
             bool $printpagenumbers = false): \stored_file {
         global $USER;
 
@@ -151,10 +132,7 @@ abstract class converter {
                 $context = helper::get_page_context();
                 $contextid = is_null($context) ? null : $context->id;
                 $proxyurl = helper::get_proxy_url($url, $key, $contextid);
-
-                $renderoptions = $this->validate_render_options($renderoptions);
-                $pdfcontent = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue,
-                    $renderoptions);
+                $pdfcontent = $this->generate_pdf_content($proxyurl, $filename, $options, $cookiename, $cookievalue);
                 $temppdf = $this->create_pdf_file($pdfcontent, $filename);
                 $pdffilepaths[] = $temppdf->copy_content_to_temp();
                 $temppdf->delete();
@@ -245,17 +223,6 @@ abstract class converter {
         } catch (\moodle_exception $exception) {
             return false;
         }
-    }
-
-    /**
-     * Hook to validate renderoptions before conversion, override in extending classes.
-     *
-     * @param array $renderoptions Chromium-specific options such as windowSize, userAgent,
-     * jsCondition and jsParams.
-     * @return array Validated render options.
-     */
-    protected function validate_render_options(array $renderoptions): array {
-        return $renderoptions;
     }
 
     /**

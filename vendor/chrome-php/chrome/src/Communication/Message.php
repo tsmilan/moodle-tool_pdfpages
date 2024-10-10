@@ -15,10 +15,10 @@ class Message
 {
     /**
      * global message id auto incremented for each message sent.
+     *
      * @var int
      */
     private static $messageId = 0;
-
 
     /**
      * @var int
@@ -36,7 +36,13 @@ class Message
     protected $params;
 
     /**
-     * get the last generated message id
+     * @var ?string
+     */
+    protected $sessionId;
+
+    /**
+     * get the last generated message id.
+     *
      * @return int
      */
     public static function getLastMessageId()
@@ -46,13 +52,14 @@ class Message
 
     /**
      * @param string $method
-     * @param array $params
+     * @param array  $params
      */
-    public function __construct(string $method, array $params = [])
+    public function __construct(string $method, array $params = [], ?string $sessionId = null)
     {
         $this->id = ++self::$messageId;
         $this->method = $method;
         $this->params = $params;
+        $this->sessionId = $sessionId;
     }
 
     /**
@@ -79,15 +86,27 @@ class Message
         return $this->params;
     }
 
-    /**
-     * @inheritdoc
-     */
     public function __toString(): string
     {
-        return json_encode([
-            'id'        => $this->getId(),
-            'method'    => $this->getMethod(),
-            'params'    => (object) $this->getParams()
-        ]);
+        $message = [
+            'id' => $this->getId(),
+            'method' => $this->getMethod(),
+            'params' => (object) $this->getParams(),
+        ];
+        if (null !== $this->sessionId) {
+            $message['sessionId'] = $this->sessionId;
+        }
+
+        return \json_encode($message);
+    }
+
+    public function getSessionId(): ?string
+    {
+        return $this->sessionId;
+    }
+
+    public function setSessionId(string $sessionId): void
+    {
+        $this->sessionId = $sessionId;
     }
 }

@@ -42,7 +42,7 @@ class key_manager {
      * @throws \moodle_exception if user doesn't have permission to create key.
      */
     protected static function create_user_key(int $userid, int $instance, string $iprestriction = ''): string {
-        require_capability('tool/pdfpages:generatepdf', \context_system::instance());
+        helper::check_generatepdf_capability();
 
         $iprestriction = !empty($iprestriction) ? $iprestriction : null;
 

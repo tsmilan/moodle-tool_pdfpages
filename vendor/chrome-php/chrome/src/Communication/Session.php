@@ -40,48 +40,53 @@ class Session extends EventEmitter
 
     /**
      * Session constructor.
-     * @param string $targetId
-     * @param string $sessionId
+     *
+     * @param string     $targetId
+     * @param string     $sessionId
      * @param Connection $connection
      */
     public function __construct(string $targetId, string $sessionId, Connection $connection)
     {
-        $this->sessionId  = $sessionId;
-        $this->targetId   = $targetId;
+        $this->sessionId = $sessionId;
+        $this->targetId = $targetId;
         $this->connection = $connection;
     }
 
     /**
      * @param Message $message
-     * @return SessionResponseReader
+     *
      * @throws CommunicationException
+     *
+     * @return ResponseReader
      */
-    public function sendMessage(Message $message): SessionResponseReader
+    public function sendMessage(Message $message): ResponseReader
     {
         if ($this->destroyed) {
             throw new TargetDestroyed('The session was destroyed.');
         }
 
-        $topResponse = $this->getConnection()->sendMessage(new Message('Target.sendMessageToTarget', [
-            'message' => (string) $message,
-            'sessionId' => $this->getSessionId()
-        ]));
+        if (null === $message->getSessionId()) {
+            $message->setSessionId($this->getSessionId());
+        }
+        $topResponse = $this->getConnection()->sendMessage($message);
 
-        return new SessionResponseReader($topResponse, $message);
+        return $topResponse;
     }
 
     /**
      * @param Message $message
-     * @param int $timeout
-     * @return Response
+     * @param int     $timeout
+     *
      * @throws NoResponseAvailable
      * @throws CommunicationException
+     *
+     * @return Response
      */
     public function sendMessageSync(Message $message, int $timeout = null): Response
     {
         $responseReader = $this->sendMessage($message);
 
-        $response = $responseReader->waitForResponse($timeout ?? $this->getConnection()->getSendSyncDefaultTimeout());
+        $response = $responseReader->waitForResponse($timeout);
 
         if (!$response) {
             throw new NoResponseAvailable('No response was sent in the given timeout');
@@ -114,20 +119,23 @@ class Session extends EventEmitter
         if ($this->destroyed) {
             throw new TargetDestroyed('The session was destroyed.');
         }
+
         return $this->connection;
     }
 
     /**
-     * Marks the session as destroyed
+     * Marks the session as destroyed.
+     *
      * @internal
      */
-    public function destroy()
+    public function destroy(): void
     {
         if ($this->destroyed) {
             throw new TargetDestroyed('The session was already destroyed.');
         }
         $this->emit('destroyed');
         $this->connection = null;
+        $this->destroyed = true;
         $this->removeAllListeners();
     }
 }

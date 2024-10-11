@@ -107,7 +107,7 @@ class converter_chromium extends converter {
                 $page->setUserAgent($options['userAgent']);
             }
 
-            $page->navigate($proxyurl->out(false))->waitForNavigation();
+            $page->navigate($proxyurl->out(false))->waitForNavigation(PAGE::NETWORK_IDLE, 60000);
 
             $timeout = 1000 * helper::get_config($this->get_name() . 'responsetimeout');
 

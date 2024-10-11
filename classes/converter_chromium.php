@@ -83,7 +83,11 @@ class converter_chromium extends converter {
         try {
             $browseroptions = [
                 'headless' => true,
-                'noSandbox' => true
+                'noSandbox' => true,
+                'customFlags' => [
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu'
+                ],
             ];
 
             if (isset($options['windowSize'])) {

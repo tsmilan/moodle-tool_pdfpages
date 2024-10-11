@@ -107,7 +107,10 @@ class converter_chromium extends converter {
                 $page->setUserAgent($options['userAgent']);
             }
 
-            $page->navigate($proxyurl->out(false))->waitForNavigation();
+            // Wait until the page reaches a "network idle" state, which means that no more active
+            // network requests such as images or scripts are pending. A 60-second timeout is set to
+            // prevent it from hanging indefinitely if the network takes too long to become idle.
+            $page->navigate($proxyurl->out(false))->waitForNavigation(PAGE::NETWORK_IDLE, 60000);
 
             $timeout = 1000 * helper::get_config($this->get_name() . 'responsetimeout');
 

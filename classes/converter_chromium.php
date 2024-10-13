@@ -64,6 +64,7 @@ class converter_chromium extends converter {
         'jsCondition' => '(string) A JavaScript condition to be evaluated, specified as a string.
             It should return a boolean value indicating whether the condition has been met',
         'jsConditionParams' => '(array) An array of parameters to pass to the Javascript function.',
+        'customFlags' => '(array) An array of flags to pass to the BrowserFactory class.'
     ];
 
     /**
@@ -83,11 +84,15 @@ class converter_chromium extends converter {
         try {
             $browseroptions = [
                 'headless' => true,
-                'noSandbox' => true
+                'noSandbox' => true,
             ];
 
             if (isset($options['windowSize'])) {
                 $browseroptions['windowSize'] = $options['windowSize'];
+            }
+
+            if (isset($options['customFlags'])) {
+                $browseroptions['customFlags'] = $options['customFlags'];
             }
 
             $browserfactory = new BrowserFactory(helper::get_config($this->get_name() . 'path'));
@@ -119,7 +124,7 @@ class converter_chromium extends converter {
             $this->wait_for_js_condition($page, $jscondition, $jsconditionparams, $timeout);
 
             $pdfoptions = array_filter($options, function($option) {
-                $renderoptions = ['windowSize', 'userAgent', 'jsCondition', 'jsconditionparams'];
+                $renderoptions = ['windowSize', 'userAgent', 'jsCondition', 'jsconditionparams', 'customFlags'];
                 return !in_array($option, $renderoptions);
             }, ARRAY_FILTER_USE_KEY);
 
